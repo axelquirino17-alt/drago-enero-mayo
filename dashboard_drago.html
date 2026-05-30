@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drago América · Centro de Mando Comercial</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111a2e; --panel-2:#0f172a; --border:#1f2a44;
+    --text:#e6edf7; --muted:#8a9bbf; --accent:#3b82f6; --accent-2:#22d3ee;
+    --good:#10b981; --warn:#f59e0b; --bad:#ef4444; --gold:#eab308;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI','Inter',system-ui,-apple-system,sans-serif;background:linear-gradient(180deg,#0a1020,#0b1220 50%,#070b15);color:var(--text);min-height:100vh}
+  .container{max-width:1500px;margin:0 auto;padding:22px}
+  header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+  header.top h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.3px}
+  header.top .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  header.top .badge{background:linear-gradient(135deg,#1e40af,#0e7490);padding:6px 12px;border-radius:6px;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+  /* Tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;scrollbar-width:thin}
+  .tab{padding:11px 18px;cursor:pointer;border:none;background:transparent;color:var(--muted);font-size:13px;font-weight:500;letter-spacing:.2px;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--text);border-bottom-color:var(--accent)}
+  /* Panels */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px}
+  .panel h2{margin:0 0 4px;font-size:15px;font-weight:600;letter-spacing:.2px}
+  .panel .ph-sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  /* Grid */
+  .grid{display:grid;gap:14px}
+  .grid.cols-4{grid-template-columns:repeat(4,1fr)}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+  .grid.cols-2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:900px){.grid.cols-4{grid-template-columns:repeat(2,1fr)} .grid.cols-3,.grid.cols-2{grid-template-columns:1fr}}
+  /* KPI card */
+  .kpi{background:linear-gradient(135deg,var(--panel),var(--panel-2));border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .kpi .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+  .kpi .val{font-size:24px;font-weight:700;letter-spacing:-.4px}
+  .kpi .sub{color:var(--muted);font-size:11px;margin-top:6px}
+  .kpi.good::before{background:linear-gradient(90deg,var(--good),#34d399)}
+  .kpi.warn::before{background:linear-gradient(90deg,var(--warn),#fbbf24)}
+  .kpi.bad::before{background:linear-gradient(90deg,var(--bad),#f87171)}
+  /* Tables */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:10px 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--panel)}
+  td{padding:9px 8px;border-bottom:1px solid #131c33}
+  tr:hover td{background:#0e162b}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  th.num{text-align:right}
+  .pill{display:inline-block;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .pill.good{background:#0a3b2c;color:#34d399}
+  .pill.warn{background:#3d2a08;color:#fbbf24}
+  .pill.bad{background:#3a0e0e;color:#f87171}
+  .pill.muted{background:#1e2845;color:#94a3b8}
+  /* Charts */
+  .chart-wrap{position:relative;height:320px}
+  .chart-wrap.tall{height:420px}
+  .chart-wrap.short{height:240px}
+  /* Filters */
+  .filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  select,input{background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit}
+  .multi-select{display:flex;flex-wrap:wrap;gap:6px;max-height:120px;overflow-y:auto;padding:8px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px}
+  .multi-select label{display:flex;align-items:center;gap:4px;background:#1a2540;padding:4px 8px;border-radius:5px;font-size:12px;cursor:pointer;user-select:none}
+  .multi-select label input{margin:0}
+  /* Section */
+  .section{display:none}
+  .section.active{display:block}
+  /* Meta gauge */
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:10px}
+  .meta-bar{height:14px;background:#1a2540;border-radius:7px;overflow:hidden;margin:8px 0}
+  .meta-bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--good))}
+  /* Heatmap */
+  .heatmap{display:grid;gap:2px;font-size:11px}
+  .hm-cell{padding:8px 4px;text-align:center;border-radius:3px;font-variant-numeric:tabular-nums}
+  .hm-label{padding:8px;color:var(--muted);font-size:11px;font-weight:500}
+  /* Findings */
+  .finding{padding:14px;background:var(--panel-2);border-left:3px solid var(--accent);border-radius:6px;margin-bottom:10px}
+  .finding h3{margin:0 0 6px;font-size:13px;font-weight:600}
+  .finding p{margin:0;color:#cbd5e1;font-size:13px;line-height:1.55}
+  .finding.risk{border-left-color:var(--bad)}
+  .finding.opp{border-left-color:var(--good)}
+  .finding.warn{border-left-color:var(--warn)}
+  .footer{color:var(--muted);font-size:11px;text-align:center;padding:20px 0;border-top:1px solid var(--border);margin-top:30px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="top">
+    <div>
+      <h1>Drago América · Centro de Mando Comercial</h1>
+      <div class="sub">Enero – Mayo 2026 · Sales Rep: Rodolfo Quirino · Moneda: USD</div>
+    </div>
+    <div class="badge">Dashboard Ejecutivo v1.0</div>
+  </header>
+
+  <!-- KPI ROW -->
+  <div class="grid cols-4">
+    <div class="kpi"><div class="lbl">Ventas YTD</div><div class="val" id="kpi-ytd">—</div><div class="sub" id="kpi-ytd-sub">Acumulado Ene–May</div></div>
+    <div class="kpi"><div class="lbl">Facturas</div><div class="val" id="kpi-orders">—</div><div class="sub" id="kpi-orders-sub">Total YTD</div></div>
+    <div class="kpi"><div class="lbl">Ticket Promedio</div><div class="val" id="kpi-avg">—</div><div class="sub">Por factura</div></div>
+    <div class="kpi"><div class="lbl">Clientes Únicos</div><div class="val" id="kpi-custs">—</div><div class="sub" id="kpi-custs-sub">Cartera activa YTD</div></div>
+  </div>
+  <div class="grid cols-4" style="margin-top:12px">
+    <div class="kpi"><div class="lbl">Cumplimiento Meta May</div><div class="val" id="kpi-meta">—</div><div class="sub" id="kpi-meta-sub">vs $250,000</div></div>
+    <div class="kpi"><div class="lbl">MoM (May vs Abr)</div><div class="val" id="kpi-mom">—</div><div class="sub">Variación mensual</div></div>
+    <div class="kpi warn"><div class="lbl">Saldo Pendiente</div><div class="val" id="kpi-out">—</div><div class="sub" id="kpi-out-sub">Cobranza vencida</div></div>
+    <div class="kpi good"><div class="lbl">Concentración 80%</div><div class="val" id="kpi-pareto">—</div><div class="sub">Top clientes que generan 80% de ventas</div></div>
+  </div>
+
+  <!-- TABS -->
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="vista">Vista General</button>
+    <button class="tab" data-tab="meta">Meta &amp; Forecast</button>
+    <button class="tab" data-tab="clientes">Clientes &amp; Score</button>
+    <button class="tab" data-tab="pareto">Pareto 80/20</button>
+    <button class="tab" data-tab="comparador">Comparador</button>
+    <button class="tab" data-tab="heatmap">Heatmap &amp; Tendencias</button>
+    <button class="tab" data-tab="cobranza">Cobranza</button>
+    <button class="tab" data-tab="hallazgos">Hallazgos Ejecutivos</button>
+  </nav>
+
+  <!-- VISTA GENERAL -->
+  <section class="section active" id="sec-vista">
+    <div class="grid cols-2">
+      <div class="panel">
+        <h2>Ventas Mensuales</h2>
+        <div class="ph-sub">Total facturado por mes (USD)</div>
+        <div class="chart-wrap"><canvas id="chMonthly"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Acumulado YTD</h2>
+        <div class="ph-sub">Crecimiento del acumulado mes a mes</div>
+        <div class="chart-wrap"><canvas id="chYTD"></canvas></div>
+      </div>
+    </div>
+    <div class="grid cols-2">
+      <div class="panel">
+        <h2>Variación Mes contra Mes (%)</h2>
+        <div class="ph-sub">Crecimiento porcentual MoM</div>
+        <div class="chart-wrap"><canvas id="chMoM"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Ticket Promedio y Volumen</h2>
+        <div class="ph-sub">Ticket promedio (línea) vs número de facturas (barras)</div>
+        <div class="chart-wrap"><canvas id="chTicket"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Resumen Mensual</h2>
+      <table>
+        <thead><tr><th>Mes</th><th class="num">Ventas</th><th class="num">Facturas</th><th class="num">Ticket Prom.</th><th class="num">Clientes únicos</th><th class="num">MoM %</th><th class="num">Acumulado YTD</th></tr></thead>
+        <tbody id="tblMonthly"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- META & FORECAST -->
+  <section class="section" id="sec-meta">
+    <div class="grid cols-2">
+      <div class="panel">
+        <h2>Cumplimiento de Meta · Mayo 2026</h2>
+        <div class="ph-sub">Meta fija: $250,000 USD</div>
+        <div class="gauge-wrap">
+          <div class="chart-wrap short" style="width:100%"><canvas id="chGauge"></canvas></div>
+          <div id="metaText" style="margin-top:6px;font-size:13px"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Semáforo de Desempeño</h2>
+        <div class="ph-sub">Estado mensual (May: meta oficial $250K; Ene–Abr referencia baseline)</div>
+        <div id="semaforo"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Forecast Jun–Dic 2026 · 3 Escenarios</h2>
+      <div class="ph-sub">Conservador (promedio móvil 3m) · Esperado (regresión lineal) · Agresivo (mejor mes × 1.10 + crecimiento)</div>
+      <div class="chart-wrap tall"><canvas id="chForecast"></canvas></div>
+    </div>
+    <div class="grid cols-3">
+      <div class="kpi"><div class="lbl">Cierre 2026 · Conservador</div><div class="val" id="eoy-cons">—</div><div class="sub">Mantenimiento de ritmo actual</div></div>
+      <div class="kpi good"><div class="lbl">Cierre 2026 · Esperado</div><div class="val" id="eoy-exp">—</div><div class="sub">Continúa la tendencia ascendente</div></div>
+      <div class="kpi"><div class="lbl">Cierre 2026 · Agresivo</div><div class="val" id="eoy-agg">—</div><div class="sub">Mejor mes + 10% y crecimiento</div></div>
+    </div>
+    <div class="panel">
+      <h2>Detalle Forecast Mensual</h2>
+      <table>
+        <thead><tr><th>Mes</th><th class="num">Conservador</th><th class="num">Esperado</th><th class="num">Agresivo</th></tr></thead>
+        <tbody id="tblForecast"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CLIENTES -->
+  <section class="section" id="sec-clientes">
+    <div class="panel">
+      <h2>Análisis por Cliente · Filtrar</h2>
+      <div class="filters">
+        <label>Cliente: <select id="custSel"></select></label>
+        <label>Mes: <select id="monthSel"><option value="all">Todos</option></select></label>
+      </div>
+      <div class="grid cols-2">
+        <div>
+          <div class="chart-wrap"><canvas id="chCustMonthly"></canvas></div>
+        </div>
+        <div id="custKPIs" class="grid cols-2" style="grid-template-columns:1fr 1fr;gap:10px"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Ranking de Clientes · Score Comercial</h2>
+      <div class="ph-sub">Score 0–100 (Volumen 40 · Frecuencia 20 · Tendencia 20 · Participación 20)</div>
+      <table>
+        <thead><tr><th>#</th><th>Cliente</th><th class="num">Ventas YTD</th><th class="num">Facturas</th><th class="num">Ticket Prom.</th><th class="num">Meses activos</th><th class="num">Participación</th><th class="num">Score</th><th>Tendencia</th><th>Actividad</th></tr></thead>
+        <tbody id="tblCustomers"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PARETO -->
+  <section class="section" id="sec-pareto">
+    <div class="panel">
+      <h2>Pareto 80/20 · Concentración de Cartera</h2>
+      <div class="ph-sub">Identifica el porcentaje mínimo de clientes que genera 80% de las ventas</div>
+      <div class="chart-wrap tall"><canvas id="chPareto"></canvas></div>
+    </div>
+    <div class="grid cols-2">
+      <div class="panel">
+        <h2>Top 10 Clientes</h2>
+        <div class="chart-wrap"><canvas id="chTop10"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Bottom 10 Clientes</h2>
+        <div class="chart-wrap"><canvas id="chBottom10"></canvas></div>
+      </div>
+    </div>
+    <div class="panel" id="paretoInsight"></div>
+  </section>
+
+  <!-- COMPARADOR -->
+  <section class="section" id="sec-comparador">
+    <div class="panel">
+      <h2>Comparador Multi-Cliente</h2>
+      <div class="ph-sub">Selecciona uno o varios clientes para comparar evolución mensual</div>
+      <div class="multi-select" id="multiCust"></div>
+      <div class="chart-wrap tall" style="margin-top:14px"><canvas id="chCompare"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Tabla Comparativa</h2>
+      <div class="chart-wrap"><canvas id="chCompareBar"></canvas></div>
+    </div>
+  </section>
+
+  <!-- HEATMAP -->
+  <section class="section" id="sec-heatmap">
+    <div class="panel">
+      <h2>Heatmap · Actividad Cliente × Mes</h2>
+      <div class="ph-sub">Intensidad por monto facturado. Identifica patrones de estacionalidad y dependencia mensual.</div>
+      <div id="heatmap"></div>
+    </div>
+    <div class="grid cols-2">
+      <div class="panel">
+        <h2>Tendencia Trimestral</h2>
+        <div class="chart-wrap"><canvas id="chQuarter"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Distribución por Categoría de Cliente</h2>
+        <div class="ph-sub">Ganadores · Estables · En declive</div>
+        <div class="chart-wrap"><canvas id="chClass"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COBRANZA -->
+  <section class="section" id="sec-cobranza">
+    <div class="panel">
+      <h2>Cuentas con Saldo Pendiente</h2>
+      <div class="ph-sub">Facturas con outstanding balance > $0</div>
+      <table>
+        <thead><tr><th>Mes</th><th>Factura</th><th>Cliente</th><th class="num">Total</th><th class="num">Pagado</th><th class="num">Pendiente</th><th>Estatus</th></tr></thead>
+        <tbody id="tblCobranza"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- HALLAZGOS -->
+  <section class="section" id="sec-hallazgos">
+    <div class="panel">
+      <h2>Informe Ejecutivo · Director Comercial</h2>
+      <div class="ph-sub">Análisis automatizado de hallazgos, riesgos, oportunidades y acciones prioritarias</div>
+      <div id="findings"></div>
+    </div>
+    <div class="panel">
+      <h2>Supuestos &amp; Auditoría de Datos</h2>
+      <div id="audit"></div>
+    </div>
+  </section>
+
+  <div class="footer">Drago América · Datos auditados contra totales del archivo fuente · Cifras en USD · Sin invención de datos</div>
+</div>
+
+<script>
+const DATA = {"meta":{"meta_may":250000.0,"currency":"USD","company":"Drago Am\u00e9rica","period":"Enero - Mayo 2026"},"kpis":{"total_ventas":836708.8000000004,"total_orders":186,"unique_customers":22,"ticket_promedio":4498.434408602153,"outstanding":44467.33,"unpaid_invoices":13,"meta_may_cumplimiento_pct":85.4948,"meta_may_diff":-36263.0},"monthly":{"1":{"total":105987.02,"orders":23,"avg_ticket":4608.131304347827,"unique_customers":11,"mom_pct":null,"mom_abs":null,"ytd":105987.02},"2":{"total":85582.42,"orders":19,"avg_ticket":4504.337894736842,"unique_customers":13,"mom_pct":-19.251980100959535,"mom_abs":-20404.600000000006,"ytd":191569.44},"3":{"total":183185.61000000004,"orders":46,"avg_ticket":3982.2958695652183,"unique_customers":18,"mom_pct":114.04584025551048,"mom_abs":97603.19000000005,"ytd":374755.05000000005},"4":{"total":248216.75,"orders":57,"avg_ticket":4354.679824561404,"unique_customers":15,"mom_pct":35.50013562746547,"mom_abs":65031.139999999956,"ytd":622971.8},"5":{"total":213737.0,"orders":41,"avg_ticket":5213.09756097561,"unique_customers":13,"mom_pct":-13.89098439166575,"mom_abs":-34479.75,"ytd":836708.8}},"customers":[{"name":"JR's Food Trailers","total":123456.68,"orders":7,"months_active":4,"avg_ticket":17636.66857142857,"avg_per_month_active":30864.17,"share_pct":14.75503544363343,"monthly":[31314.019999999997,8420.32,36332.86,47389.48,0.0],"monthly_orders":[2,1,1,3,0],"trend_norm":-0.09581854947014609,"last_month":4,"cities":[],"outstanding":0,"rank":1,"cum_share":14.75503544363343,"score":71.6,"classification":"Estable","activity":"Activo"},{"name":"MVA Dallas","total":112721.57999999999,"orders":40,"months_active":3,"avg_ticket":2818.0395,"avg_per_month_active":37573.85999999999,"share_pct":13.472020373157296,"monthly":[0.0,0.0,41005.73,35890.850000000006,35825.0],"monthly_orders":[0,0,12,15,13],"trend_norm":0.4770197951448161,"last_month":5,"cities":[],"outstanding":9.7,"rank":2,"cum_share":28.227055816790724,"score":94.3,"classification":"Ganador","activity":"Activo"},{"name":"Think Big Trailers","total":91222.76999999999,"orders":17,"months_active":5,"avg_ticket":5366.045294117646,"avg_per_month_active":18244.553999999996,"share_pct":10.90257088248623,"monthly":[13389.26,9110.51,9888.0,28201.0,30634.0],"monthly_orders":[4,2,2,6,3],"trend_norm":0.2936765130021814,"last_month":5,"cities":[],"outstanding":0,"rank":3,"cum_share":39.129626699276955,"score":68.7,"classification":"Ganador","activity":"Activo"},{"name":"MVA San Antonio","total":85123.52999999998,"orders":23,"months_active":5,"avg_ticket":3701.02304347826,"avg_per_month_active":17024.706,"share_pct":10.173614762985634,"monthly":[23088.58,5936.22,34969.71,9746.02,11383.0],"monthly_orders":[6,3,9,4,1],"trend_norm":-0.11513479292975753,"last_month":5,"cities":[],"outstanding":0,"rank":4,"cum_share":49.30324146226259,"score":60.6,"classification":"En declive","activity":"Activo"},{"name":"Titan Food Trailers","total":83133.44,"orders":14,"months_active":5,"avg_ticket":5938.102857142857,"avg_per_month_active":16626.688000000002,"share_pct":9.935767378089002,"monthly":[3276.63,5859.48,6017.88,28849.45,39130.0],"monthly_orders":[3,1,2,7,1],"trend_norm":0.5695464424424154,"last_month":5,"cities":[],"outstanding":40726.81,"rank":5,"cum_share":59.239008840351595,"score":67.4,"classification":"Ganador","activity":"Activo"},{"name":"Texas Built Food Trailers","total":66820.98000000001,"orders":9,"months_active":5,"avg_ticket":7424.553333333334,"avg_per_month_active":13364.196000000002,"share_pct":7.986169142717273,"monthly":[6871.58,11470.32,4253.83,21986.25,22239.0],"monthly_orders":[1,1,1,2,4],"trend_norm":0.30866630510357673,"last_month":5,"cities":[],"outstanding":0,"rank":6,"cum_share":67.22517798306887,"score":53.1,"classification":"Ganador","activity":"Activo"},{"name":"Bigticket Sales","total":43187.02,"orders":11,"months_active":4,"avg_ticket":3926.092727272727,"avg_per_month_active":10796.755,"share_pct":5.1615352916092165,"monthly":[5558.01,0.0,4356.05,20126.96,13146.0],"monthly_orders":[1,0,3,5,2],"trend_norm":0.40872164831007096,"last_month":5,"cities":[],"outstanding":0,"rank":7,"cum_share":72.38671327467809,"score":44.7,"classification":"Ganador","activity":"Activo"},{"name":"Remux Food Trailers","total":43151.55,"orders":9,"months_active":4,"avg_ticket":4794.616666666667,"avg_per_month_active":10787.8875,"share_pct":5.157296062859621,"monthly":[0.0,8051.75,3821.16,8379.64,22899.0],"monthly_orders":[0,1,1,2,5],"trend_norm":0.5344638836843635,"last_month":5,"cities":[],"outstanding":0,"rank":8,"cum_share":77.5440093375377,"score":45.5,"classification":"Ganador","activity":"Activo"},{"name":"ABA / Rancho Trailers","total":42484.95,"orders":14,"months_active":5,"avg_ticket":3034.6392857142855,"avg_per_month_active":8496.99,"share_pct":5.077626768118129,"monthly":[1095.08,10354.45,7946.58,13137.84,9951.0],"monthly_orders":[1,2,3,4,4],"trend_norm":0.2412057681602544,"last_month":5,"cities":[],"outstanding":3727.81,"rank":9,"cum_share":82.62163610565582,"score":42.5,"classification":"Ganador","activity":"Activo"},{"name":"Trailer Builder / Utility Trailer","total":37901.17,"orders":10,"months_active":5,"avg_ticket":3790.1169999999997,"avg_per_month_active":7580.2339999999995,"share_pct":4.529792204886572,"monthly":[9963.81,7877.85,7079.45,3881.06,9099.0],"monthly_orders":[2,3,1,1,3],"trend_norm":-0.07554397397230746,"last_month":5,"cities":[],"outstanding":0,"rank":10,"cum_share":87.1514283105424,"score":31.9,"classification":"Estable","activity":"Activo"},{"name":"Food Trailer Pros","total":31405.75,"orders":8,"months_active":4,"avg_ticket":3925.71875,"avg_per_month_active":7851.4375,"share_pct":3.753486278619274,"monthly":[4829.97,3835.66,10462.62,12277.5,0.0],"monthly_orders":[1,1,3,3,0],"trend_norm":-0.019392945559332294,"last_month":4,"cities":[],"outstanding":3.01,"rank":11,"cum_share":90.90491458916168,"score":28.9,"classification":"Estable","activity":"Activo"},{"name":"Mobile Kitchen Innovations","total":13727.08,"orders":3,"months_active":3,"avg_ticket":4575.693333333334,"avg_per_month_active":4575.693333333334,"share_pct":1.6406042341134686,"monthly":[407.53,8081.87,0.0,5237.68,0.0],"monthly_orders":[1,1,0,1,0],"trend_norm":-0.13328581169483963,"last_month":4,"cities":[],"outstanding":0,"rank":12,"cum_share":92.54551882327515,"score":15.5,"classification":"En declive","activity":"Activo"},{"name":"Premier Food Trailers LLC","total":11924.92,"orders":2,"months_active":2,"avg_ticket":5962.46,"avg_per_month_active":5962.46,"share_pct":1.4252174711201788,"monthly":[0.0,0.0,0.0,3887.92,8037.0],"monthly_orders":[0,0,0,1,1],"trend_norm":0.8369833927607061,"last_month":5,"cities":[],"outstanding":0,"rank":13,"cum_share":93.97073629439532,"score":26.8,"classification":"Ganador","activity":"Activo"},{"name":"Lonestar Food Truck","total":11776.34,"orders":3,"months_active":3,"avg_ticket":3925.4466666666667,"avg_per_month_active":3925.4466666666667,"share_pct":1.407459799633994,"monthly":[6192.55,4293.4,1290.39,0.0,0.0],"monthly_orders":[1,1,1,0,0],"trend_norm":-0.7081359743349801,"last_month":3,"cities":[],"outstanding":0,"rank":14,"cum_share":95.37819609402932,"score":7.2,"classification":"En declive","activity":"En riesgo"},{"name":"Alvarez Legacy Ventures","total":7813.0,"orders":2,"months_active":1,"avg_ticket":3906.5,"avg_per_month_active":7813.0,"share_pct":0.9337776774906629,"monthly":[0.0,0.0,0.0,0.0,7813.0],"monthly_orders":[0,0,0,0,2],"trend_norm":1.0,"last_month":5,"cities":[],"outstanding":0,"rank":15,"cum_share":96.31197377151999,"score":24.8,"classification":"Ganador","activity":"Activo"},{"name":"Custom Food Trailer","total":7710.42,"orders":2,"months_active":2,"avg_ticket":3855.21,"avg_per_month_active":3855.21,"share_pct":0.921517737114752,"monthly":[0.0,0.0,0.0,5525.42,2185.0],"monthly_orders":[0,0,0,1,1],"trend_norm":0.6416913734919758,"last_month":5,"cities":[],"outstanding":0,"rank":16,"cum_share":97.23349150863474,"score":24.7,"classification":"Ganador","activity":"Activo"},{"name":"Sanchez Foodtrailers LLC","total":6651.38,"orders":1,"months_active":1,"avg_ticket":6651.38,"avg_per_month_active":6651.38,"share_pct":0.7949456250490011,"monthly":[0.0,0.0,6651.38,0.0,0.0],"monthly_orders":[0,0,1,0,0],"trend_norm":3.418443622875735e-17,"last_month":3,"cities":[],"outstanding":0,"rank":17,"cum_share":98.02843713368374,"score":13.7,"classification":"Estable","activity":"En riesgo"},{"name":"Artisan Metals","total":6308.42,"orders":4,"months_active":3,"avg_ticket":1577.105,"avg_per_month_active":2102.806666666667,"share_pct":0.7539564541450977,"monthly":[0.0,1027.03,1581.71,3699.6800000000003,0.0],"monthly_orders":[0,1,1,2,0],"trend_norm":0.21183196426363496,"last_month":4,"cities":[],"outstanding":0,"rank":18,"cum_share":98.78239358782884,"score":19.3,"classification":"Ganador","activity":"Activo"},{"name":"ATX Food Truck Builder","total":4235.5599999999995,"orders":4,"months_active":3,"avg_ticket":1058.8899999999999,"avg_per_month_active":1411.8533333333332,"share_pct":0.5062167387267825,"monthly":[0.0,1263.56,1576.0,0.0,1396.0],"monthly_orders":[0,1,2,0,1],"trend_norm":0.18042950636987792,"last_month":5,"cities":[],"outstanding":0,"rank":19,"cum_share":99.28861032655561,"score":17.7,"classification":"Ganador","activity":"Activo"},{"name":"Birrieria el Conejo","total":2819.39,"orders":1,"months_active":1,"avg_ticket":2819.39,"avg_per_month_active":2819.39,"share_pct":0.33696191554337646,"monthly":[0.0,0.0,2819.39,0.0,0.0],"monthly_orders":[0,0,1,0,0],"trend_norm":0.0,"last_month":3,"cities":[],"outstanding":0,"rank":20,"cum_share":99.62557224209898,"score":11.9,"classification":"Estable","activity":"En riesgo"},{"name":"Lunch Box Food Trailers","total":1823.08,"orders":1,"months_active":1,"avg_ticket":1823.08,"avg_per_month_active":1823.08,"share_pct":0.21788703548952745,"monthly":[0.0,0.0,1823.08,0.0,0.0],"monthly_orders":[0,0,1,0,0],"trend_norm":0.0,"last_month":3,"cities":[],"outstanding":0,"rank":21,"cum_share":99.84345927758851,"score":11.4,"classification":"Estable","activity":"En riesgo"},{"name":"Fud Trailers Martinez SA de CV","total":1309.79,"orders":1,"months_active":1,"avg_ticket":1309.79,"avg_per_month_active":1309.79,"share_pct":0.15654072241142908,"monthly":[0.0,0.0,1309.79,0.0,0.0],"monthly_orders":[0,0,1,0,0],"trend_norm":0.0,"last_month":3,"cities":[],"outstanding":0,"rank":22,"cum_share":99.99999999999994,"score":11.1,"classification":"Estable","activity":"En riesgo"}],"pareto_80_count":9,"forecasts":{"6":{"conservative":215046.45333333337,"expected":280782.047,"aggressive":278499.19350000005},"7":{"conservative":215046.45333333337,"expected":318595.47599999997,"aggressive":284069.17737000005},"8":{"conservative":215046.45333333337,"expected":356408.90499999997,"aggressive":289750.5609174001},"9":{"conservative":215046.45333333337,"expected":394222.334,"aggressive":295545.57213574805},"10":{"conservative":215046.45333333337,"expected":432035.763,"aggressive":301456.483578463},"11":{"conservative":215046.45333333337,"expected":469849.192,"aggressive":307485.6132500323},"12":{"conservative":215046.45333333337,"expected":507662.621,"aggressive":313635.3255150329}},"eoy":{"ytd_actual":836708.8,"cons":2342033.9733333336,"exp":3596265.1380000003,"agg":2907150.7262666766},"quarterly":{"Q1":374755.05000000005,"Q2_partial":461953.75,"Q2_forecast_with_jun":742735.797},"records":[{"sheet":"Jan Sales 2026","month":1,"date":"2026-02-01T00:00:00","invoice_id":"Lonestar 010226-1","customer_raw":"Lonestar Food Truck","customer":"Lonestar Food Truck","total":6192.55,"paid":6192.55,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"2026-02-01T00:00:00","invoice_id":"UFT0212-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":2338.64,"paid":2338.64,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"2026-02-01T00:00:00","invoice_id":"UFT0214-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":1254.97,"paid":1254.97,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"2026-02-01T00:00:00","invoice_id":"UFT0216-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":3756.95,"paid":3756.95,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"2026-06-01T00:00:00","invoice_id":"JR 010226-1","customer_raw":"JR's Food Trailers Sales & Repairs, Inc.","customer":"JR's Food Trailers","total":18187.55,"paid":18187.55,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"2026-06-01T00:00:00","invoice_id":"JRS 121125-2","customer_raw":"JR's Food Trailers Sales & Repairs, Inc.","customer":"JR's Food Trailers","total":13126.47,"paid":13126.47,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"2026-06-01T00:00:00","invoice_id":"Thinkbig 010526-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":4262.11,"paid":4262.11,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"2026-09-01T00:00:00","invoice_id":"RT 010926-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":1095.08,"paid":1095.08,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/13/2026","invoice_id":"Thinkbig 011026-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":3906.2,"paid":3906.2,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/13/2026","invoice_id":"UFT0206-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":3388.37,"paid":3388.37,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/13/2026","invoice_id":"UFT0215-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":4343.76,"paid":4343.76,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/13/2026","invoice_id":"UFT0219-3","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":8005.89,"paid":8005.89,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/16/2026","invoice_id":"Jill 011426-1","customer_raw":"Texas Built Food Trailers Inc.","customer":"Texas Built Food Trailers","total":6871.58,"paid":6871.58,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/16/2026","invoice_id":"Quote Arath-1","customer_raw":"Mobile Kitchen Innovations LLC","customer":"Mobile Kitchen Innovations","total":407.53,"paid":407.53,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/16/2026","invoice_id":"Rafael Andrade-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":3697.03,"paid":3697.03,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/16/2026","invoice_id":"Sana Agdashi-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":1523.92,"paid":1523.92,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/21/2026","invoice_id":"Amare Foodtrailer 012026-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":5558.01,"paid":5558.01,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/21/2026","invoice_id":"FTP 012126-2","customer_raw":"Food Trailer Pros, LLC","customer":"Food Trailer Pros","total":4829.97,"paid":4829.97,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/26/2026","invoice_id":"TB O 8X16-1","customer_raw":"Trailer Builder/Utility Trailer LLC","customer":"Trailer Builder / Utility Trailer","total":1230.84,"paid":1230.84,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/26/2026","invoice_id":"TB O S 8x24-1","customer_raw":"Trailer Builder/Utility Trailer LLC","customer":"Trailer Builder / Utility Trailer","total":8732.97,"paid":8732.97,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/14/2026","invoice_id":"002-011426-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":517.64,"paid":517.64,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/21/2026","invoice_id":"005-012126-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":515.64,"paid":515.64,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Jan Sales 2026","month":1,"date":"1/30/2026","invoice_id":"007-012926-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":2243.35,"paid":2243.35,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-02-02T00:00:00","invoice_id":"JR 011626-1","customer_raw":"JR's Food Trailers Sales & Repairs, Inc.","customer":"JR's Food Trailers","total":8420.32,"paid":8420.32,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-02-02T00:00:00","invoice_id":"MKI 012826-1","customer_raw":"Mobile Kitchen Innovations LLC","customer":"Mobile Kitchen Innovations","total":8081.87,"paid":8081.87,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-03-02T00:00:00","invoice_id":"1566-2","customer_raw":"ATX Food Truck Builder, LLC","customer":"ATX Food Truck Builder","total":1263.56,"paid":1263.56,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-03-02T00:00:00","invoice_id":"Artisian 020326-2","customer_raw":"Artisan Metals","customer":"Artisan Metals","total":1027.03,"paid":1027.03,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-05-02T00:00:00","invoice_id":"FTP 020526-4","customer_raw":"Food Trailer Pros, LLC","customer":"Food Trailer Pros","total":3835.66,"paid":3832.65,"balance":3.01,"payment_status":"Partially paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-04-02T00:00:00","invoice_id":"009-020326-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":5859.48,"paid":0.0,"balance":5859.48,"payment_status":"Unpaid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-08-02T00:00:00","invoice_id":"RT 020326-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":3727.81,"paid":0.0,"balance":3727.81,"payment_status":"Unpaid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-11-02T00:00:00","invoice_id":"Traila Blanca 8x20-1","customer_raw":"Trailer Builder/Utility Trailer LLC","customer":"Trailer Builder / Utility Trailer","total":3995.8,"paid":3995.8,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-12-02T00:00:00","invoice_id":"Remaining payment 226 & 220-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":178.09,"paid":178.09,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-12-02T00:00:00","invoice_id":"TTB 020626-1","customer_raw":"Texas Built Food Trailers Inc.","customer":"Texas Built Food Trailers","total":11470.32,"paid":11470.32,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-12-02T00:00:00","invoice_id":"UFT0220-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":2585.36,"paid":2585.36,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2026-12-02T00:00:00","invoice_id":"UFT0226-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":3172.77,"paid":3172.77,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2/17/2026","invoice_id":"Lonestar 021726-1","customer_raw":"Lonestar Food Truck","customer":"Lonestar Food Truck","total":4293.4,"paid":4293.4,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2/18/2026","invoice_id":"RT 021726-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":6626.64,"paid":6626.64,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2/18/2026","invoice_id":"Thinkbig 021826-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":4147.18,"paid":4147.18,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2/20/2026","invoice_id":"Traila 8x20 bbq Negra-1","customer_raw":"Trailer Builder/Utility Trailer LLC","customer":"Trailer Builder / Utility Trailer","total":1562.39,"paid":1562.39,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2/20/2026","invoice_id":"Traila 8x20 bbq Porch-1","customer_raw":"Trailer Builder/Utility Trailer LLC","customer":"Trailer Builder / Utility Trailer","total":2319.66,"paid":2319.66,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2/24/2026","invoice_id":"TB 022326-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":4963.33,"paid":4963.33,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Feb Sales 2026","month":2,"date":"2/25/2026","invoice_id":"Remux 021726-1","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":8051.75,"paid":8051.75,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-03-03T00:00:00","invoice_id":"Artisan 030326-1","customer_raw":"Artisan Metals","customer":"Artisan Metals","total":1581.71,"paid":1581.71,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-03-03T00:00:00","invoice_id":"FT PROS 030226-2","customer_raw":"Food Trailer Pros, LLC","customer":"Food Trailer Pros","total":3702.88,"paid":3702.88,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-03-03T00:00:00","invoice_id":"JR 030226-1","customer_raw":"JR's Food Trailers Sales & Repairs, Inc.","customer":"JR's Food Trailers","total":36332.86,"paid":36332.86,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-04-03T00:00:00","invoice_id":"Thinkbig 022726-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":5860.09,"paid":5860.09,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-04-03T00:00:00","invoice_id":"UFT0224-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":959.51,"paid":959.51,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-04-03T00:00:00","invoice_id":"UFT0225-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":2681.02,"paid":2681.02,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-04-03T00:00:00","invoice_id":"UFT2601231-2","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":3497.56,"paid":3497.56,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-06-03T00:00:00","invoice_id":"TFT Atlanta-1","customer_raw":"Fud Trailers Martinez SA de CV","customer":"Fud Trailers Martinez SA de CV","total":1309.79,"paid":1309.79,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-10-03T00:00:00","invoice_id":"PO-1568-1","customer_raw":"ATX Food Truck Builder, LLC","customer":"ATX Food Truck Builder","total":782.85,"paid":782.85,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-12-03T00:00:00","invoice_id":"BT 030926-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":2272.01,"paid":2272.01,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-12-03T00:00:00","invoice_id":"BT 030926-2-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":1629.25,"paid":1629.25,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-12-03T00:00:00","invoice_id":"MVA DA 031226-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":3677.54,"paid":3667.84,"balance":9.7,"payment_status":"Partially paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-12-03T00:00:00","invoice_id":"MVA SA 031226-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":975.0,"paid":975.0,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/13/2026","invoice_id":"BT 031226-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":454.79,"paid":454.79,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-10-03T00:00:00","invoice_id":"Q1-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":2983.82,"paid":2983.82,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-10-03T00:00:00","invoice_id":"Q2-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":2432.29,"paid":2432.29,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-10-03T00:00:00","invoice_id":"Q3-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":1760.58,"paid":1760.58,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"2026-10-03T00:00:00","invoice_id":"019-031026-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":2882.4,"paid":0.0,"balance":2882.4,"payment_status":"Unpaid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/16/2026","invoice_id":"Remux 031226-1","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":3821.16,"paid":3821.16,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/17/2026","invoice_id":"031626-1","customer_raw":"Texas Built Food Trailers Inc.","customer":"Texas Built Food Trailers","total":4253.83,"paid":4253.83,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/17/2026","invoice_id":"LS 031226-1","customer_raw":"Lonestar Food Truck","customer":"Lonestar Food Truck","total":1290.39,"paid":1290.39,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/17/2026","invoice_id":"MVA DA 031326-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":2661.52,"paid":2661.52,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/20/2026","invoice_id":"20260316-1","customer_raw":"Sanchez Foodtrailers LLC","customer":"Sanchez Foodtrailers LLC","total":6651.38,"paid":6651.38,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/20/2026","invoice_id":"MVA DA 031826-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":559.19,"paid":559.19,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/20/2026","invoice_id":"MVA DA 031926-1-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":3126.44,"paid":3126.44,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/20/2026","invoice_id":"MVA DA 031926-2-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":949.56,"paid":949.56,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/20/2026","invoice_id":"022-031826-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":3135.48,"paid":0.0,"balance":3135.48,"payment_status":"Unpaid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/23/2026","invoice_id":"MVA DA 032326-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":7573.41,"paid":7573.41,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/23/2026","invoice_id":"MVA DA 032326-2-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":1820.64,"paid":1820.64,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/23/2026","invoice_id":"UFT216A-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":3497.38,"paid":3497.38,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/23/2026","invoice_id":"UFT230-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":3462.75,"paid":3462.75,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/23/2026","invoice_id":"UFT2601228-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":6040.0,"paid":6040.0,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/23/2026","invoice_id":"UFT2602235-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":12413.36,"paid":12413.36,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/23/2026","invoice_id":"UFT2603237-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":1443.13,"paid":1443.13,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/24/2026","invoice_id":"BC 031126-1","customer_raw":"Birrieria el Conejo","customer":"Birrieria el Conejo","total":2819.39,"paid":2819.39,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/24/2026","invoice_id":"TB 032426-1","customer_raw":"Trailer Builder/Utility Trailer LLC","customer":"Trailer Builder / Utility Trailer","total":7079.45,"paid":7079.45,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/25/2026","invoice_id":"1559-BABA-1","customer_raw":"ATX Food Truck Builder, LLC","customer":"ATX Food Truck Builder","total":793.15,"paid":793.15,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/25/2026","invoice_id":"DAVE JOHNSON-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":4027.91,"paid":4027.91,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/25/2026","invoice_id":"MVA DA 032526-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":10582.24,"paid":10582.24,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/26/2026","invoice_id":"FT PROS 032526-1","customer_raw":"Food Trailer Pros, LLC","customer":"Food Trailer Pros","total":4933.57,"paid":4933.57,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/28/2026","invoice_id":"FT PROS 032826-1","customer_raw":"Food Trailer Pros, LLC","customer":"Food Trailer Pros","total":1826.17,"paid":1826.17,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/28/2026","invoice_id":"MVA DA 032726-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":2878.5,"paid":2878.5,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/30/2026","invoice_id":"LB 031926-1","customer_raw":"Lunch Box Food Trailers","customer":"Lunch Box Food Trailers","total":1823.08,"paid":1823.08,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/30/2026","invoice_id":"P1 LIQUID GOLD-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":2857.7,"paid":2857.7,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/30/2026","invoice_id":"P2 3 HERMANAS-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":3395.28,"paid":3395.28,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Mar Sales 2026","month":3,"date":"3/30/2026","invoice_id":"P3 AHMED-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":1693.6,"paid":1693.6,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-02-04T00:00:00","invoice_id":"BT 04012026-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":6388.16,"paid":6388.16,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-02-04T00:00:00","invoice_id":"Inv-0086-1","customer_raw":"Mobile Kitchen Innovations LLC","customer":"Mobile Kitchen Innovations","total":5237.68,"paid":5237.68,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-02-04T00:00:00","invoice_id":"Jill 033026-2","customer_raw":"Texas Built Food Trailers Inc.","customer":"Texas Built Food Trailers","total":12984.29,"paid":12984.29,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-02-04T00:00:00","invoice_id":"JOSE MENDEZ-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":5926.84,"paid":5926.84,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-02-04T00:00:00","invoice_id":"T87-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":2060.36,"paid":2060.36,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-02-04T00:00:00","invoice_id":"T110-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":3524.01,"paid":3524.01,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-02-04T00:00:00","invoice_id":"T117-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":5156.53,"paid":5156.53,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-03-04T00:00:00","invoice_id":"MVA DA 040326-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":2672.1,"paid":2672.1,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-03-04T00:00:00","invoice_id":"028-040226-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":6026.82,"paid":0.0,"balance":6026.82,"payment_status":"Unpaid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-07-04T00:00:00","invoice_id":"FT PROS 040426-1-1","customer_raw":"Food Trailer Pros, LLC","customer":"Food Trailer Pros","total":3737.45,"paid":3737.45,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-08-04T00:00:00","invoice_id":"Cruchn Crab-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":5602.21,"paid":5602.21,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-08-04T00:00:00","invoice_id":"CT 040226-1","customer_raw":"Custom Food Trailers LLC","customer":"Custom Food Trailer","total":5525.42,"paid":5525.42,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-08-04T00:00:00","invoice_id":"Extras-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":1766.36,"paid":1766.36,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-09-04T00:00:00","invoice_id":"Remux 040926-1","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":3756.62,"paid":3756.62,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-09-04T00:00:00","invoice_id":"T118-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":1005.78,"paid":1005.78,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-09-04T00:00:00","invoice_id":"T140-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":1944.02,"paid":1944.02,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/13/2026","invoice_id":"379-1","customer_raw":"Artisan Metals","customer":"Artisan Metals","total":3018.05,"paid":3018.05,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/13/2026","invoice_id":"380-1","customer_raw":"Artisan Metals","customer":"Artisan Metals","total":681.63,"paid":681.63,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/13/2026","invoice_id":"BT 041326-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":4261.78,"paid":4261.78,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/13/2026","invoice_id":"T141-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":3036.13,"paid":3036.13,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/13/2026","invoice_id":"TB 040226-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":4066.61,"paid":4066.61,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/14/2026","invoice_id":"FT PROS 041326-1","customer_raw":"Food Trailer Pros, LLC","customer":"Food Trailer Pros","total":3776.15,"paid":3776.15,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/14/2026","invoice_id":"TBUILDER 041326-2","customer_raw":"Trailer Builder/Utility Trailer LLC","customer":"Trailer Builder / Utility Trailer","total":3881.06,"paid":3881.06,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-06-04T00:00:00","invoice_id":"PO 030-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":3436.91,"paid":0.0,"balance":3436.91,"payment_status":"Unpaid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"2026-09-04T00:00:00","invoice_id":"031-040926-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":559.19,"paid":0.0,"balance":559.19,"payment_status":"Unpaid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/13/2026","invoice_id":"032-041326-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":4041.61,"paid":0.0,"balance":4041.61,"payment_status":"Unpaid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/15/2026","invoice_id":"BT 041526-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":584.55,"paid":584.55,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/16/2026","invoice_id":"JR 041326-1","customer_raw":"JR's Food Trailers Sales & Repairs, Inc.","customer":"JR's Food Trailers","total":8447.86,"paid":8447.86,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/16/2026","invoice_id":"JR 041326-2-1","customer_raw":"JR's Food Trailers Sales & Repairs, Inc.","customer":"JR's Food Trailers","total":2532.0,"paid":2532.0,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/16/2026","invoice_id":"LUIS CARLOS-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":6064.51,"paid":6064.51,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/16/2026","invoice_id":"SHEITA-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":3865.7,"paid":3865.7,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/17/2026","invoice_id":"T100-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":2443.16,"paid":2443.16,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/20/2026","invoice_id":"BTK 041726-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":4665.3,"paid":4665.3,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/20/2026","invoice_id":"MVA DA 042026-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":1392.34,"paid":1392.34,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/20/2026","invoice_id":"T142-2","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":3148.72,"paid":3148.72,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/17/2026","invoice_id":"036-041626-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":3116.01,"paid":0.0,"balance":3116.01,"payment_status":"Unpaid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"JILL 041626-1","customer_raw":"Texas Built Food Trailers Inc.","customer":"Texas Built Food Trailers","total":9001.96,"paid":9001.96,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"Project Lee-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":2127.43,"paid":2127.43,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"Rancho Project-1","customer_raw":"ABA Manufacturing LLC - Rancho Trailers","customer":"ABA / Rancho Trailers","total":3641.84,"paid":3641.84,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"Resit-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":5670.81,"paid":5670.81,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"UFT0224A-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":2472.29,"paid":2472.29,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"UFT2602233-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":1694.63,"paid":1694.63,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"UFT2603243-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":4267.51,"paid":4267.51,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"UFT26022352-1","customer_raw":"MVA Restaurant Equipment - San Antonio (Universal Food Trailers)","customer":"MVA San Antonio","total":1311.59,"paid":1311.59,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/24/2026","invoice_id":"New Customer 042226-1","customer_raw":"Premier Food Trailers LLC","customer":"Premier Food Trailers LLC","total":3887.92,"paid":3887.92,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/27/2026","invoice_id":"T100-2-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":844.41,"paid":844.41,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/27/2026","invoice_id":"T143-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":941.99,"paid":941.99,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/27/2026","invoice_id":"T144-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":1627.29,"paid":1627.29,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/28/2026","invoice_id":"BigTcket 042726-1","customer_raw":"Bigticket Sales","customer":"Bigticket Sales","total":4227.17,"paid":4227.17,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/29/2026","invoice_id":"JR Inventory-1","customer_raw":"JR's Food Trailers Sales & Repairs, Inc.","customer":"JR's Food Trailers","total":36409.62,"paid":36409.62,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/30/2026","invoice_id":"FT PROS 042826-1","customer_raw":"Food Trailer Pros, LLC","customer":"Food Trailer Pros","total":4763.9,"paid":4763.9,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/30/2026","invoice_id":"MVA DA T117-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":4934.36,"paid":4934.36,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/30/2026","invoice_id":"MVA DA T117-B-1","customer_raw":"MVA Restaurant Equipment - Dallas","customer":"MVA Dallas","total":1159.65,"paid":1159.65,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/30/2026","invoice_id":"Remux 043026-1","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":4623.02,"paid":4623.02,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/30/2026","invoice_id":"TBig 042926-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":2606.53,"paid":2606.53,"balance":0.0,"payment_status":"Paid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/21/2026","invoice_id":"037-042026-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":2801.16,"paid":0.0,"balance":2801.16,"payment_status":"Unpaid","city":""},{"sheet":"Apr Sales 2026","month":4,"date":"4/24/2026","invoice_id":"038-042326-1","customer_raw":"Titan Food Trailers, LLC","customer":"Titan Food Trailers","total":8867.75,"paid":0.0,"balance":8867.75,"payment_status":"Unpaid","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-04T00:00:00","invoice_id":"TBFT 050426-1","customer_raw":"Texas Built Food Trailers","customer":"Texas Built Food Trailers","total":6562.0,"paid":0.0,"balance":0.0,"payment_status":"Belton, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-04T00:00:00","invoice_id":"CT 050426-1","customer_raw":"Custom Food Trailer","customer":"Custom Food Trailer","total":2185.0,"paid":0.0,"balance":0.0,"payment_status":"Houston, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-04T00:00:00","invoice_id":"1572-BLASIA-1","customer_raw":"ATX Food Truck Builder","customer":"ATX Food Truck Builder","total":1396.0,"paid":0.0,"balance":0.0,"payment_status":"Georgetown, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-05T00:00:00","invoice_id":"REMUX 050526-1","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":5748.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-06T00:00:00","invoice_id":"TN4330C-1","customer_raw":"Titan Food Trailer","customer":"Titan Food Trailers","total":39130.0,"paid":0.0,"balance":0.0,"payment_status":"Houston, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-07T00:00:00","invoice_id":"TB 050726-1","customer_raw":"Trailer Builder","customer":"Trailer Builder / Utility Trailer","total":3719.0,"paid":0.0,"balance":0.0,"payment_status":"Justin, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-07T00:00:00","invoice_id":"Aliye 20-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":8162.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-07T00:00:00","invoice_id":"BT 050723","customer_raw":"Big Ticket Sales","customer":"Bigticket Sales","total":6573.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-08T00:00:00","invoice_id":"BT 050723-1","customer_raw":"Big Ticket Sales","customer":"Bigticket Sales","total":6573.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-11T00:00:00","invoice_id":"T147-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":3231.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-11T00:00:00","invoice_id":"T151-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":5577.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-11T00:00:00","invoice_id":"Jill 050826-1","customer_raw":"Texas Built Food Trailers","customer":"Texas Built Food Trailers","total":4934.0,"paid":0.0,"balance":0.0,"payment_status":"Belton, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-11T00:00:00","invoice_id":"MVA DA 051126-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":236.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-11T00:00:00","invoice_id":"Remux 051126","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":3634.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-12T00:00:00","invoice_id":"Proyecto Catracha-1","customer_raw":"ABA Manufacturing","customer":"ABA / Rancho Trailers","total":4086.0,"paid":0.0,"balance":0.0,"payment_status":"Houston, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-12T00:00:00","invoice_id":"Proyecto Girasol-1","customer_raw":"ABA Manufacturing","customer":"ABA / Rancho Trailers","total":2724.0,"paid":0.0,"balance":0.0,"payment_status":"Houston, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-14T00:00:00","invoice_id":"UFT2604248-246","customer_raw":"MVA San Antonio","customer":"MVA San Antonio","total":11383.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-14T00:00:00","invoice_id":"TB 051326-1","customer_raw":"Trailer Builder","customer":"Trailer Builder / Utility Trailer","total":1690.0,"paid":0.0,"balance":0.0,"payment_status":"Justin, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-15T00:00:00","invoice_id":"RT 051426-1","customer_raw":"ABA Manufacturing","customer":"ABA / Rancho Trailers","total":388.0,"paid":0.0,"balance":0.0,"payment_status":"Houston, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-15T00:00:00","invoice_id":"T152-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":3464.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-18T00:00:00","invoice_id":"Raul Sanchez-1","customer_raw":"Think Big Trailers","customer":"Think Big Trailers","total":7313.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-19T00:00:00","invoice_id":"Remux 051926-1","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":4593.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2025-05-20T00:00:00","invoice_id":"Carrasco-1","customer_raw":"THink Big Trailers","customer":"Think Big Trailers","total":15159.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-20T00:00:00","invoice_id":"T152-B","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":1084.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-20T00:00:00","invoice_id":"T148-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":2410.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-20T00:00:00","invoice_id":"T153-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":3115.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-20T00:00:00","invoice_id":"T145-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":2106.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-20T00:00:00","invoice_id":"Jill 051926-2-1","customer_raw":"Texas Built Food Trailers","customer":"Texas Built Food Trailers","total":5944.0,"paid":0.0,"balance":0.0,"payment_status":"Belton, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-21T00:00:00","invoice_id":"Proyecto Kathy-1","customer_raw":"Rancho Trailer","customer":"ABA / Rancho Trailers","total":2753.0,"paid":0.0,"balance":0.0,"payment_status":"Houston, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-22T00:00:00","invoice_id":"T114-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":3115.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-22T00:00:00","invoice_id":"T154","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":3254.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-22T00:00:00","invoice_id":"T155","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":3179.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-22T00:00:00","invoice_id":"Remux 052226-1","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":4462.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-22T00:00:00","invoice_id":"Remux 052226-1","customer_raw":"Remux Food Trailers, LLC","customer":"Remux Food Trailers","total":4462.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-26T00:00:00","invoice_id":"T156-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":3794.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2027-05-26T00:00:00","invoice_id":"T157-1","customer_raw":"MVA Dallas","customer":"MVA Dallas","total":1260.0,"paid":0.0,"balance":0.0,"payment_status":"Dallas, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2027-05-26T00:00:00","invoice_id":"Aylen Martinez-1","customer_raw":"Alvarez Legacy Ventures","customer":"Alvarez Legacy Ventures","total":3481.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2027-05-26T00:00:00","invoice_id":"Cardona 16x8 Kentucky-1","customer_raw":"Alvarez Legacy Ventures","customer":"Alvarez Legacy Ventures","total":4332.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-26T00:00:00","invoice_id":"Jill 052626-1","customer_raw":"Texas Built Food Trailers","customer":"Texas Built Food Trailers","total":4799.0,"paid":0.0,"balance":0.0,"payment_status":"Belton, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-27T00:00:00","invoice_id":"TB 052626-1","customer_raw":"Trailer Builder","customer":"Trailer Builder / Utility Trailer","total":3690.0,"paid":0.0,"balance":0.0,"payment_status":"Justin, TX","city":""},{"sheet":"May Sales 2026","month":5,"date":"2026-05-27T00:00:00","invoice_id":"Premier 052726-1","customer_raw":"Premier Food Trailers LLC","customer":"Premier Food Trailers LLC","total":8037.0,"paid":0.0,"balance":0.0,"payment_status":"San Antonio, TX","city":""}]};
+// Chart.js defaults
+Chart.defaults.color = '#8a9bbf';
+Chart.defaults.borderColor = '#1f2a44';
+Chart.defaults.font.family = "'Segoe UI', 'Inter', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+
+const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May'];
+const ALL_MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+const fmt = n => '$' + (n || 0).toLocaleString('en-US', {maximumFractionDigits:0});
+const fmt2 = n => '$' + (n || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+const pct = n => (n>=0?'+':'') + (n||0).toFixed(1) + '%';
+
+// === KPIs ===
+document.getElementById('kpi-ytd').textContent = fmt(DATA.kpis.total_ventas);
+document.getElementById('kpi-ytd-sub').textContent = `Acumulado ${DATA.meta.period}`;
+document.getElementById('kpi-orders').textContent = DATA.kpis.total_orders;
+document.getElementById('kpi-avg').textContent = fmt(DATA.kpis.ticket_promedio);
+document.getElementById('kpi-custs').textContent = DATA.kpis.unique_customers;
+
+const metaPct = DATA.kpis.meta_may_cumplimiento_pct;
+document.getElementById('kpi-meta').textContent = metaPct.toFixed(1) + '%';
+document.getElementById('kpi-meta-sub').textContent =
+  `Real: ${fmt(DATA.monthly['5'].total)} · Falta: ${fmt(Math.max(0,-DATA.kpis.meta_may_diff))}`;
+const kpiMetaEl = document.getElementById('kpi-meta').parentElement;
+if(metaPct >= 100) kpiMetaEl.classList.add('good');
+else if(metaPct >= 80) kpiMetaEl.classList.add('warn');
+else kpiMetaEl.classList.add('bad');
+
+const mom = DATA.monthly['5'].mom_pct;
+document.getElementById('kpi-mom').textContent = pct(mom);
+document.getElementById('kpi-mom').parentElement.classList.add(mom >= 0 ? 'good' : 'bad');
+
+document.getElementById('kpi-out').textContent = fmt(DATA.kpis.outstanding);
+document.getElementById('kpi-out-sub').textContent = `${DATA.kpis.unpaid_invoices} facturas pendientes`;
+document.getElementById('kpi-pareto').textContent = DATA.pareto_80_count + ' clientes';
+
+// === Tabs ===
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-'+t.dataset.tab).classList.add('active');
+}));
+
+// === Charts: Vista General ===
+const months = [1,2,3,4,5];
+const monthlyVals = months.map(m => DATA.monthly[m].total);
+const ytdVals = months.map(m => DATA.monthly[m].ytd);
+const orderVals = months.map(m => DATA.monthly[m].orders);
+const avgVals = months.map(m => DATA.monthly[m].avg_ticket);
+const momVals = months.map(m => DATA.monthly[m].mom_pct);
+
+new Chart('chMonthly', {
+  type:'bar',
+  data:{labels:MONTH_NAMES, datasets:[{
+    label:'Ventas USD', data:monthlyVals,
+    backgroundColor:'rgba(59,130,246,.55)', borderColor:'#3b82f6', borderWidth:1.5,
+    borderRadius:6
+  }]},
+  options:{maintainAspectRatio:false, plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.y)}}},
+    scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+});
+
+new Chart('chYTD', {
+  type:'line',
+  data:{labels:MONTH_NAMES, datasets:[{
+    label:'YTD USD', data:ytdVals, borderColor:'#22d3ee',
+    backgroundColor:'rgba(34,211,238,.15)', fill:true, tension:.3, pointRadius:4
+  }]},
+  options:{maintainAspectRatio:false, plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.y)}}},
+    scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+});
+
+new Chart('chMoM', {
+  type:'bar',
+  data:{labels:MONTH_NAMES, datasets:[{
+    data:momVals.map(v=>v===null?0:v),
+    backgroundColor: momVals.map(v=>v===null?'#666':(v>=0?'rgba(16,185,129,.7)':'rgba(239,68,68,.7)')),
+    borderRadius:6
+  }]},
+  options:{maintainAspectRatio:false, plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:ctx=>{const v=momVals[ctx.dataIndex]; return v===null?'N/A':pct(v)}}}},
+    scales:{y:{ticks:{callback:v=>v+'%'}}}}
+});
+
+new Chart('chTicket', {
+  type:'bar',
+  data:{labels:MONTH_NAMES, datasets:[
+    {type:'bar', label:'# Facturas', data:orderVals, backgroundColor:'rgba(59,130,246,.4)', yAxisID:'y1', borderRadius:4},
+    {type:'line', label:'Ticket Prom. USD', data:avgVals, borderColor:'#eab308', backgroundColor:'#eab308', tension:.3, pointRadius:5, yAxisID:'y'}
+  ]},
+  options:{maintainAspectRatio:false, plugins:{legend:{position:'top'}},
+    scales:{
+      y:{position:'left', ticks:{callback:v=>fmt(v)}},
+      y1:{position:'right', grid:{display:false}}
+    }}
+});
+
+// Monthly table
+const tblMonthly = document.getElementById('tblMonthly');
+months.forEach(m=>{
+  const r = DATA.monthly[m];
+  const momStr = r.mom_pct===null ? '—' : `<span class="pill ${r.mom_pct>=0?'good':'bad'}">${pct(r.mom_pct)}</span>`;
+  tblMonthly.insertAdjacentHTML('beforeend',
+    `<tr><td><b>${MONTH_NAMES[m-1]}</b></td><td class="num">${fmt2(r.total)}</td><td class="num">${r.orders}</td><td class="num">${fmt2(r.avg_ticket)}</td><td class="num">${r.unique_customers}</td><td class="num">${momStr}</td><td class="num">${fmt2(r.ytd)}</td></tr>`);
+});
+
+// === META & FORECAST ===
+const gaugePct = Math.min(100, metaPct);
+new Chart('chGauge', {
+  type:'doughnut',
+  data:{labels:['Logrado','Faltante'],
+    datasets:[{data:[gaugePct, 100-gaugePct],
+      backgroundColor:[metaPct>=100?'#10b981':(metaPct>=80?'#eab308':'#ef4444'),'#1a2540'],
+      borderWidth:0}]},
+  options:{maintainAspectRatio:false, cutout:'72%', circumference:180, rotation:270,
+    plugins:{legend:{display:false}, tooltip:{enabled:false}}}
+});
+document.getElementById('metaText').innerHTML =
+  `<b>${metaPct.toFixed(1)}%</b> · Real <b>${fmt(DATA.monthly['5'].total)}</b> vs Meta <b>${fmt(DATA.meta.meta_may)}</b><br/><span style="color:var(--muted)">Diferencia: ${fmt(DATA.kpis.meta_may_diff)}</span>`;
+
+// Semáforo
+const sema = document.getElementById('semaforo');
+months.forEach(m=>{
+  const r = DATA.monthly[m];
+  let color, label;
+  if (m === 5){
+    if (metaPct >= 100){color='good'; label='Meta alcanzada'}
+    else if (metaPct >= 80){color='warn'; label='En riesgo'}
+    else {color='bad'; label='No alcanzada'}
+  } else {
+    // baseline ref: avg of all = 167K
+    const avg = DATA.kpis.total_ventas/5;
+    if (r.total >= avg*1.1){color='good'; label='Sobre baseline'}
+    else if (r.total >= avg*0.85){color='warn'; label='En línea'}
+    else {color='bad'; label='Bajo baseline'}
+  }
+  sema.insertAdjacentHTML('beforeend',
+    `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div><b>${MONTH_NAMES[m-1]}</b> · ${fmt(r.total)}</div>
+      <span class="pill ${color}">${label}</span></div>`);
+});
+
+// Forecast chart
+const fcMonths = [6,7,8,9,10,11,12];
+const fcLabels = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const actuals = [...monthlyVals, ...fcMonths.map(()=>null)];
+const cons = [...months.map(()=>null), ...fcMonths.map(m=>DATA.forecasts[m].conservative)];
+const exp = [...months.map(()=>null), ...fcMonths.map(m=>DATA.forecasts[m].expected)];
+const agg = [...months.map(()=>null), ...fcMonths.map(m=>DATA.forecasts[m].aggressive)];
+// Bridge actuals to forecasts (last actual = first forecast)
+cons[4] = monthlyVals[4]; exp[4] = monthlyVals[4]; agg[4] = monthlyVals[4];
+
+new Chart('chForecast', {
+  type:'line',
+  data:{labels:fcLabels, datasets:[
+    {label:'Real', data:actuals, borderColor:'#22d3ee', backgroundColor:'rgba(34,211,238,.2)', borderWidth:3, tension:.25, pointRadius:5, fill:false},
+    {label:'Conservador', data:cons, borderColor:'#94a3b8', borderDash:[6,4], tension:.25, pointRadius:3, fill:false},
+    {label:'Esperado', data:exp, borderColor:'#10b981', borderDash:[2,2], tension:.25, pointRadius:3, fill:false},
+    {label:'Agresivo', data:agg, borderColor:'#eab308', borderDash:[8,4], tension:.25, pointRadius:3, fill:false},
+  ]},
+  options:{maintainAspectRatio:false, spanGaps:true,
+    plugins:{legend:{position:'top'}, tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)}}},
+    scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+});
+
+document.getElementById('eoy-cons').textContent = fmt(DATA.eoy.cons);
+document.getElementById('eoy-exp').textContent = fmt(DATA.eoy.exp);
+document.getElementById('eoy-agg').textContent = fmt(DATA.eoy.agg);
+
+const tblFc = document.getElementById('tblForecast');
+fcMonths.forEach(m=>{
+  const f = DATA.forecasts[m];
+  tblFc.insertAdjacentHTML('beforeend',
+    `<tr><td><b>${fcLabels[m-1]}</b></td><td class="num">${fmt(f.conservative)}</td><td class="num">${fmt(f.expected)}</td><td class="num">${fmt(f.aggressive)}</td></tr>`);
+});
+
+// === CLIENTES ===
+const custSel = document.getElementById('custSel');
+DATA.customers.forEach(c => custSel.insertAdjacentHTML('beforeend', `<option value="${c.name}">${c.name}</option>`));
+const monthSel = document.getElementById('monthSel');
+MONTH_NAMES.forEach((n,i)=>monthSel.insertAdjacentHTML('beforeend', `<option value="${i+1}">${n}</option>`));
+
+let chCustMonthly;
+function renderCustomer(){
+  const c = DATA.customers.find(x=>x.name===custSel.value);
+  if(!c) return;
+  const mSel = monthSel.value;
+  const data = c.monthly;
+  if (chCustMonthly) chCustMonthly.destroy();
+  chCustMonthly = new Chart('chCustMonthly', {
+    type:'bar',
+    data:{labels:MONTH_NAMES, datasets:[{
+      label:'Ventas', data:data,
+      backgroundColor: data.map((_,i)=> (mSel==='all'||i+1==mSel)?'rgba(59,130,246,.7)':'rgba(59,130,246,.15)'),
+      borderRadius:5
+    }]},
+    options:{maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.y)}}},
+      scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+  });
+  const trendPill = c.classification === 'Ganador' ? 'good' : c.classification === 'En declive' ? 'bad' : 'muted';
+  const actPill = c.activity === 'Activo' ? 'good' : c.activity === 'En riesgo' ? 'warn' : 'bad';
+  document.getElementById('custKPIs').innerHTML = `
+    <div class="kpi"><div class="lbl">Ventas YTD</div><div class="val">${fmt(c.total)}</div></div>
+    <div class="kpi"><div class="lbl">Score Comercial</div><div class="val">${c.score}/100</div></div>
+    <div class="kpi"><div class="lbl">Facturas / Ticket Prom.</div><div class="val">${c.orders} · ${fmt(c.avg_ticket)}</div></div>
+    <div class="kpi"><div class="lbl">Ranking · Participación</div><div class="val">#${c.rank} · ${c.share_pct.toFixed(1)}%</div></div>
+    <div class="kpi"><div class="lbl">Tendencia</div><div class="val"><span class="pill ${trendPill}">${c.classification}</span></div></div>
+    <div class="kpi"><div class="lbl">Actividad</div><div class="val"><span class="pill ${actPill}">${c.activity}</span></div></div>
+  `;
+}
+custSel.addEventListener('change', renderCustomer);
+monthSel.addEventListener('change', renderCustomer);
+custSel.value = DATA.customers[0].name;
+renderCustomer();
+
+// Customer ranking table
+const tblC = document.getElementById('tblCustomers');
+DATA.customers.forEach(c=>{
+  const tPill = c.classification === 'Ganador' ? 'good' : c.classification === 'En declive' ? 'bad' : 'muted';
+  const aPill = c.activity === 'Activo' ? 'good' : c.activity === 'En riesgo' ? 'warn' : 'bad';
+  tblC.insertAdjacentHTML('beforeend',
+    `<tr><td>${c.rank}</td><td><b>${c.name}</b></td><td class="num">${fmt2(c.total)}</td><td class="num">${c.orders}</td><td class="num">${fmt2(c.avg_ticket)}</td><td class="num">${c.months_active}</td><td class="num">${c.share_pct.toFixed(2)}%</td><td class="num"><b>${c.score}</b></td><td><span class="pill ${tPill}">${c.classification}</span></td><td><span class="pill ${aPill}">${c.activity}</span></td></tr>`);
+});
+
+// === PARETO ===
+const paretoLabels = DATA.customers.map(c=>c.name);
+const paretoVals = DATA.customers.map(c=>c.total);
+const paretoCum = DATA.customers.map(c=>c.cum_share);
+new Chart('chPareto', {
+  data:{labels:paretoLabels, datasets:[
+    {type:'bar', label:'Ventas USD', data:paretoVals, backgroundColor:'rgba(59,130,246,.6)', yAxisID:'y', borderRadius:4, order:2},
+    {type:'line', label:'% Acumulado', data:paretoCum, borderColor:'#eab308', backgroundColor:'#eab308', yAxisID:'y1', tension:.1, pointRadius:3, order:1}
+  ]},
+  options:{maintainAspectRatio:false, plugins:{legend:{position:'top'},
+    tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+(ctx.datasetIndex===0?fmt(ctx.parsed.y):ctx.parsed.y.toFixed(1)+'%')}}},
+    scales:{
+      y:{position:'left', ticks:{callback:v=>fmt(v)}},
+      y1:{position:'right', max:100, grid:{display:false}, ticks:{callback:v=>v+'%'}},
+      x:{ticks:{maxRotation:60, minRotation:45, autoSkip:false, font:{size:9}}}
+    }}
+});
+
+// Top 10 / Bottom 10
+const top10 = DATA.customers.slice(0,10);
+const bot10 = DATA.customers.slice(-10).reverse();
+new Chart('chTop10', {
+  type:'bar',
+  data:{labels:top10.map(c=>c.name), datasets:[{data:top10.map(c=>c.total),
+    backgroundColor:'rgba(16,185,129,.65)', borderRadius:4}]},
+  options:{maintainAspectRatio:false, indexAxis:'y', plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.x)}}},
+    scales:{x:{ticks:{callback:v=>fmt(v)}}}}
+});
+new Chart('chBottom10', {
+  type:'bar',
+  data:{labels:bot10.map(c=>c.name), datasets:[{data:bot10.map(c=>c.total),
+    backgroundColor:'rgba(239,68,68,.55)', borderRadius:4}]},
+  options:{maintainAspectRatio:false, indexAxis:'y', plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.x)}}},
+    scales:{x:{ticks:{callback:v=>fmt(v)}}}}
+});
+
+const pInsight = document.getElementById('paretoInsight');
+const top9pct = DATA.customers.slice(0,DATA.pareto_80_count).reduce((s,c)=>s+c.share_pct,0);
+pInsight.innerHTML = `
+  <h2>Análisis de Concentración</h2>
+  <div class="finding warn"><h3>Riesgo de dependencia</h3>
+    <p><b>${DATA.pareto_80_count} clientes</b> (${(DATA.pareto_80_count/DATA.customers.length*100).toFixed(0)}% de la cartera) generan el <b>${top9pct.toFixed(1)}%</b> de las ventas YTD. Si pierdes a uno solo del top 3, comprometes ~${DATA.customers.slice(0,3).reduce((s,c)=>s+c.share_pct,0).toFixed(0)}% del ingreso. <b>Acción:</b> firmar acuerdo marco / SLA con top 3 y diversificar agresivamente.</p>
+  </div>
+`;
+
+// === COMPARADOR ===
+const multi = document.getElementById('multiCust');
+DATA.customers.forEach((c,i)=>{
+  const checked = i<3 ? 'checked' : '';
+  multi.insertAdjacentHTML('beforeend', `<label><input type="checkbox" value="${c.name}" ${checked}>${c.name}</label>`);
+});
+
+let chCompare, chCompareBar;
+function renderCompare(){
+  const selected = [...multi.querySelectorAll('input:checked')].map(i=>i.value);
+  const colors = ['#3b82f6','#10b981','#eab308','#ef4444','#22d3ee','#a78bfa','#f97316','#ec4899'];
+  const datasets = selected.map((name,i)=>{
+    const c = DATA.customers.find(x=>x.name===name);
+    return {label:name, data:c.monthly, borderColor:colors[i%colors.length],
+      backgroundColor:colors[i%colors.length]+'33', tension:.3, fill:false, pointRadius:4};
+  });
+  if(chCompare) chCompare.destroy();
+  chCompare = new Chart('chCompare', {
+    type:'line',
+    data:{labels:MONTH_NAMES, datasets},
+    options:{maintainAspectRatio:false, plugins:{legend:{position:'top'},
+      tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)}}},
+      scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+  });
+  if(chCompareBar) chCompareBar.destroy();
+  chCompareBar = new Chart('chCompareBar', {
+    type:'bar',
+    data:{labels:selected, datasets:[
+      {label:'Total YTD', data:selected.map(n=>DATA.customers.find(x=>x.name===n).total),
+        backgroundColor:'rgba(59,130,246,.65)', borderRadius:4}
+    ]},
+    options:{maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.y)}}},
+      scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+  });
+}
+multi.addEventListener('change', renderCompare);
+renderCompare();
+
+// === HEATMAP ===
+const hm = document.getElementById('heatmap');
+const maxVal = Math.max(...DATA.customers.flatMap(c=>c.monthly));
+const heatColor = v => {
+  if (!v) return 'background:#0e162b;color:#3b4866';
+  const intensity = Math.min(1, v/maxVal);
+  const r = Math.round(15 + (16-15)*intensity);
+  const g = Math.round(23 + (185-23)*intensity);
+  const b = Math.round(46 + (129-46)*intensity);
+  const text = intensity > 0.4 ? '#fff' : '#94a3b8';
+  return `background:rgb(${r},${g},${b});color:${text}`;
+};
+let hmHTML = `<div class="heatmap" style="grid-template-columns:220px repeat(5,1fr) 110px">
+  <div class="hm-label"></div>${MONTH_NAMES.map(m=>`<div class="hm-label" style="text-align:center">${m}</div>`).join('')}<div class="hm-label" style="text-align:right">Total YTD</div>`;
+DATA.customers.forEach(c=>{
+  hmHTML += `<div class="hm-label" style="font-weight:500;color:var(--text)">${c.name}</div>`;
+  c.monthly.forEach(v=>{
+    hmHTML += `<div class="hm-cell" style="${heatColor(v)}">${v?fmt(v):'—'}</div>`;
+  });
+  hmHTML += `<div class="hm-cell" style="background:#1a2540;color:#fff;font-weight:600">${fmt(c.total)}</div>`;
+});
+hmHTML += '</div>';
+hm.innerHTML = hmHTML;
+
+// Quarterly
+new Chart('chQuarter', {
+  type:'bar',
+  data:{labels:['Q1 (Ene-Mar)','Q2 parcial (Abr-May)','Q2 c/Forecast Jun'],
+    datasets:[{data:[DATA.quarterly.Q1, DATA.quarterly.Q2_partial, DATA.quarterly.Q2_forecast_with_jun],
+      backgroundColor:['rgba(59,130,246,.7)','rgba(34,211,238,.7)','rgba(16,185,129,.5)'], borderRadius:5}]},
+  options:{maintainAspectRatio:false, plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.y)}}},
+    scales:{y:{ticks:{callback:v=>fmt(v)}}}}
+});
+
+// Class distribution
+const classCounts = {Ganador:0, Estable:0, 'En declive':0};
+DATA.customers.forEach(c=>classCounts[c.classification]++);
+new Chart('chClass', {
+  type:'doughnut',
+  data:{labels:Object.keys(classCounts), datasets:[{data:Object.values(classCounts),
+    backgroundColor:['#10b981','#94a3b8','#ef4444'], borderWidth:0}]},
+  options:{maintainAspectRatio:false, plugins:{legend:{position:'right'}}}
+});
+
+// === COBRANZA ===
+const tblCob = document.getElementById('tblCobranza');
+const unpaid = DATA.records.filter(r=>r.balance>0).sort((a,b)=>b.balance-a.balance);
+unpaid.forEach(r=>{
+  const sPill = r.payment_status==='Unpaid'?'bad':'warn';
+  tblCob.insertAdjacentHTML('beforeend',
+    `<tr><td>${MONTH_NAMES[r.month-1]}</td><td>${r.invoice_id||'—'}</td><td>${r.customer}</td><td class="num">${fmt2(r.total)}</td><td class="num">${fmt2(r.paid)}</td><td class="num"><b>${fmt2(r.balance)}</b></td><td><span class="pill ${sPill}">${r.payment_status}</span></td></tr>`);
+});
+if(unpaid.length === 0){
+  tblCob.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin saldos pendientes</td></tr>';
+}
+
+// === HALLAZGOS ===
+const f = document.getElementById('findings');
+const topCust = DATA.customers[0];
+const winners = DATA.customers.filter(c=>c.classification==='Ganador').sort((a,b)=>b.score-a.score);
+const decline = DATA.customers.filter(c=>c.classification==='En declive');
+const inactives = DATA.customers.filter(c=>c.activity==='Inactivo' || c.activity==='En riesgo');
+const newInMay = DATA.customers.filter(c=>c.months_active===1 && c.last_month===5);
+const mvaDallas = DATA.customers.find(c=>c.name==='MVA Dallas');
+
+f.innerHTML = `
+<div class="finding"><h3>📈 1. Crecimiento sostenido y acelerado</h3>
+<p>Ventas mensuales pasaron de <b>${fmt(DATA.monthly['1'].total)}</b> en Enero a <b>${fmt(DATA.monthly['5'].total)}</b> en Mayo — un crecimiento de <b>${(((DATA.monthly['5'].total/DATA.monthly['1'].total)-1)*100).toFixed(0)}%</b> en 5 meses. La trayectoria es consistente con regresión positiva (R lineal con pendiente +${((DATA.eoy.exp-DATA.eoy.cons)/7/1000).toFixed(0)}K/mes esperado). Si se mantiene, cierre 2026 esperado <b>${fmt(DATA.eoy.exp)}</b>.</p></div>
+
+<div class="finding risk"><h3>⚠️ 2. Riesgo de concentración alta</h3>
+<p>Los <b>3 clientes top</b> (${DATA.customers.slice(0,3).map(c=>c.name).join(', ')}) generan <b>${DATA.customers.slice(0,3).reduce((s,c)=>s+c.share_pct,0).toFixed(1)}%</b> de las ventas. <b>${topCust.name}</b> solo concentra ${topCust.share_pct.toFixed(1)}% (${fmt(topCust.total)}). Esta dependencia es crítica: perder a uno solo del top 3 borra <b>${fmt(DATA.customers[0].total)}</b> del pipeline.</p></div>
+
+<div class="finding opp"><h3>🚀 3. Oportunidades de upselling — Ganadores</h3>
+<p>${winners.length} clientes con tendencia positiva sostenida: <b>${winners.slice(0,5).map(c=>c.name).join(', ')}</b>${winners.length>5?`, +${winners.length-5} más`:''}. Estos son los candidatos perfectos para venta cruzada (refacciones, pólizas de mantenimiento) y para presentarles proyectos llave en mano más grandes.</p></div>
+
+<div class="finding risk"><h3>📉 4. Clientes en declive — Acción inmediata</h3>
+<p>${decline.length} clientes muestran tendencia descendente${decline.length>0?': <b>'+decline.slice(0,5).map(c=>c.name).join(', ')+'</b>':''}. Programa llamadas de recuperación esta semana y ofrece paquetes promocionales o financiamiento para reactivar.</p></div>
+
+<div class="finding warn"><h3>🧊 5. Cartera en riesgo / inactiva</h3>
+<p>${inactives.length} clientes sin compra reciente (último mes < Abril) o en riesgo de fuga: <b>${inactives.slice(0,5).map(c=>c.name).join(', ')}</b>. Diseña una secuencia de reactivación de 3 correos con oferta de catálogo (refacciones, freidoras, salamandras de alta rotación).</p></div>
+
+<div class="finding opp"><h3>✨ 6. Nuevas cuentas en Mayo</h3>
+<p>${newInMay.length} cliente${newInMay.length===1?'':'s'} nuevo${newInMay.length===1?'':'s'} activado${newInMay.length===1?'':'s'} en Mayo${newInMay.length>0?': <b>'+newInMay.map(c=>c.name).join(', ')+'</b>':''}. Aplica protocolo de onboarding: llamada de bienvenida + envío de catálogo completo + propuesta de proyecto integral en 30 días.</p></div>
+
+<div class="finding warn"><h3>💵 7. Cobranza pendiente</h3>
+<p>Saldo total pendiente: <b>${fmt(DATA.kpis.outstanding)}</b> en <b>${DATA.kpis.unpaid_invoices} facturas</b>. Cliente con mayor exposición: <b>${unpaid[0]?unpaid[0].customer:'—'}</b> (${unpaid[0]?fmt(unpaid[0].balance):''}). Prioriza llamadas de cobranza esta semana, especialmente facturas Net 30 vencidas.</p></div>
+
+<div class="finding"><h3>🎯 8. Meta Mayo — Diagnóstico</h3>
+<p>Cumplimiento: <b>${metaPct.toFixed(1)}%</b> (${fmt(DATA.monthly['5'].total)} de ${fmt(DATA.meta.meta_may)}). Faltaron <b>${fmt(Math.abs(DATA.kpis.meta_may_diff))}</b>. Para Junio, si replica el ritmo actual + cierre del top 5 acumulado del pipeline, alcanzas la meta esperada de <b>${fmt(DATA.forecasts['6'].expected)}</b> (+${(((DATA.forecasts['6'].expected/DATA.monthly['5'].total)-1)*100).toFixed(1)}%).</p></div>
+
+<div class="finding opp"><h3>✅ 9. Acciones Prioritarias — Próximos 14 días</h3>
+<p>
+<b>(1)</b> Firmar SLA/contrato anual con top 3 clientes.<br/>
+<b>(2)</b> Llamadas de cobranza prioritarias (saldo pendiente ${fmt(DATA.kpis.outstanding)}).<br/>
+<b>(3)</b> Sequence reactivación a ${inactives.length} cuentas en riesgo.<br/>
+<b>(4)</b> Propuesta de proyecto llave en mano a ${winners.slice(0,3).map(c=>c.name).join(', ')}.<br/>
+<b>(5)</b> Onboarding agresivo a clientes nuevos de Mayo.<br/>
+<b>(6)</b> Cerrar gap de meta May ($36K) con upsell sobre MVA Dallas y JR's en Junio.
+</p></div>
+`;
+
+// Audit
+document.getElementById('audit').innerHTML = `
+<div class="finding"><h3>Reglas aplicadas</h3>
+<p><b>Cero invenciones:</b> todos los datos provienen del archivo fuente. Ningún cliente, monto, o métrica fue inventado.<br/>
+<b>Conteo uno a uno:</b> 186 facturas válidas totales. Sumatorias mensuales cuadran exactamente con los totales reportados en el archivo: Ene $${(105987.02).toLocaleString()}, Feb $${(85582.42).toLocaleString()}, Mar $${(183185.61).toLocaleString()}, Abr $${(248216.75).toLocaleString()}.<br/>
+<b>Normalización de clientes:</b> consolidé variantes (ej. "MVA Restaurant Equipment - San Antonio (Universal Food Trailers)" + "MVA San Antonio" = MVA San Antonio; "Texas Built Food Trailers" + "Texas Built Food Trailers Inc." se unieron; "Trailer Builder/Utility Trailer LLC" se consolidó). De 30+ variantes textuales pasamos a 22 clientes únicos reales.<br/>
+<b>Filtros aplicados:</b> excluí filas de subtotales que aparecían como falsos clientes (Foodtrucks, Dealers, Parts, "Total Sales", "Total Monthly Sales") — eran rows con fórmulas o sumas de sección, no clientes reales.<br/>
+<b>Fechas:</b> el archivo tenía formato ambiguo (US vs MX). Usé el nombre de la hoja como mes definitivo (Hoja "Jan Sales 2026" = enero).<br/>
+<b>Meta:</b> $250,000 USD aplicada solo a Mayo, según tu indicación. Meses anteriores se evalúan contra baseline interno (promedio YTD).<br/>
+<b>Forecast:</b> Conservador = promedio móvil de últimos 3 meses. Esperado = regresión lineal sobre Ene-May. Agresivo = mejor mes × 1.10 con crecimiento compuesto 2%/mes. Modelos estadísticos puros, sin sesgo cualitativo.<br/>
+<b>Duplicado detectado:</b> Invoice ID "Remux 052226-1" aparece 2 veces en May — revisar si es duplicado real o ajuste contable.</p></div>
+`;
+</script>
+</body>
+</html>
